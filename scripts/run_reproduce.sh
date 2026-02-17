@@ -17,6 +17,10 @@ LEARNING_RATE="5e-5"
 LORA_R="8"
 TARGET_MODULES="q_proj,v_proj"
 
+# Torch install config (must match your CUDA runtime)
+TORCH_VERSION="2.4.1"
+TORCH_INDEX_URL="https://download.pytorch.org/whl/cu121"
+
 # SafeLoRA hyperparameters
 SELECT_LAYERS_TYPE="number"
 NUM_PROJ_LAYERS="7"
@@ -28,7 +32,10 @@ LORA_OUT="${OUT_ROOT}/lora_samsum_bad"
 SAFE_OUT="${OUT_ROOT}/lora_samsum_bad_safelora"
 
 echo "[1/4] Installing dependencies..."
-python -m pip install -r requirements-reproduce.txt
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install --prefer-binary "numpy==1.26.4"
+python -m pip install --prefer-binary --index-url "${TORCH_INDEX_URL}" "torch==${TORCH_VERSION}"
+python -m pip install --prefer-binary -r requirements-reproduce.txt
 
 echo "[2/4] LoRA fine-tuning on ${TRAIN_FILE} ..."
 TRAIN_ARGS=(

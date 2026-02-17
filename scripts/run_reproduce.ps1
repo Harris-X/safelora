@@ -14,8 +14,14 @@ Param(
 
 $ErrorActionPreference = "Stop"
 
+$TorchVersion = "2.4.1"
+$TorchIndexUrl = "https://download.pytorch.org/whl/cu121"
+
 Write-Host "[1/4] Installing dependencies..."
-python -m pip install -r requirements-reproduce.txt
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install --prefer-binary "numpy==1.26.4"
+python -m pip install --prefer-binary --index-url $TorchIndexUrl "torch==$TorchVersion"
+python -m pip install --prefer-binary -r requirements-reproduce.txt
 
 $LoraOut = Join-Path $OutRoot "lora_samsum_bad"
 $SafeOut = Join-Path $OutRoot "lora_samsum_bad_safelora"
