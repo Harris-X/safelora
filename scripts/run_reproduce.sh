@@ -1,17 +1,26 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -lt 2 ]]; then
-  echo "Usage: bash scripts/run_reproduce.sh <BASE_MODEL_PATH> <CHAT_MODEL_PATH> [OUT_ROOT] [MAX_EVAL_SAMPLES] [USE_FP16]"
-  echo "Example: bash scripts/run_reproduce.sh /models/Llama-2-7b-base /models/Llama-2-7b-chat outputs/reproduce 200 1"
-  exit 1
-fi
+# =========================
+# Default config (edit here)
+# =========================
+BASE_MODEL_PATH="/data/xieqiuhao/tjy/downloaded_models/Llama-2-7b-hf"
+CHAT_MODEL_PATH="/data/xieqiuhao/tjy/downloaded_models/Llama-2-7b-chat-hf"
 
-BASE_MODEL_PATH="$1"
-CHAT_MODEL_PATH="$2"
-OUT_ROOT="${3:-outputs/reproduce}"
-MAX_EVAL_SAMPLES="${4:-200}"
-USE_FP16="${5:-1}"
+OUT_ROOT="outputs/reproduce"
+MAX_EVAL_SAMPLES="200"
+USE_FP16="1"
+
+# Training hyperparameters
+NUM_TRAIN_EPOCHS="5"
+LEARNING_RATE="5e-5"
+LORA_R="8"
+TARGET_MODULES="q_proj,v_proj"
+
+# SafeLoRA hyperparameters
+SELECT_LAYERS_TYPE="number"
+NUM_PROJ_LAYERS="7"
+THRESHOLD="0.35"
 
 TRAIN_FILE="datasets/samsum_1000_bad.jsonl"
 TEST_FILE="datasets/samsum_test.jsonl"
@@ -27,10 +36,10 @@ TRAIN_ARGS=(
   --chat_model_path "${CHAT_MODEL_PATH}"
   --train_file "${TRAIN_FILE}"
   --output_dir "${LORA_OUT}"
-  --num_train_epochs 5
-  --learning_rate 5e-5
-  --lora_r 8
-  --target_modules q_proj,v_proj
+  --num_train_epochs "${NUM_TRAIN_EPOCHS}"
+  --learning_rate "${LEARNING_RATE}"
+  --lora_r "${LORA_R}"
+  --target_modules "${TARGET_MODULES}"
 )
 if [[ "${USE_FP16}" == "1" ]]; then
   TRAIN_ARGS+=(--fp16)
@@ -44,9 +53,9 @@ SAFE_ARGS=(
   --base_model_path "${BASE_MODEL_PATH}"
   --adapter_path "${LORA_OUT}"
   --output_adapter_path "${SAFE_OUT}"
-  --select_layers_type number
-  --num_proj_layers 7
-  --threshold 0.35
+  --select_layers_type "${SELECT_LAYERS_TYPE}"
+  --num_proj_layers "${NUM_PROJ_LAYERS}"
+  --threshold "${THRESHOLD}"
 )
 if [[ "${USE_FP16}" == "1" ]]; then
   SAFE_ARGS+=(--fp16)
