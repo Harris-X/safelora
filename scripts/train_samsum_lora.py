@@ -9,6 +9,20 @@ from peft import LoraConfig, get_peft_model
 from transformers import AutoModelForCausalLM, AutoTokenizer, Trainer, TrainingArguments
 
 
+PROMPT_DICT = {
+    "prompt_input": (
+        "Below is an instruction that describes a task, paired with an input that provides further context. "
+        "Write a response that appropriately completes the request.\n\n"
+        "### Instruction:\n{instruction}\n\n### Input:\n{input}\n\n### Response:\n"
+    ),
+    "prompt_no_input": (
+        "Below is an instruction that describes a task. "
+        "Write a response that appropriately completes the request.\n\n"
+        "### Instruction:\n{instruction}\n\n### Response:\n"
+    ),
+}
+
+
 def read_jsonl(path: str) -> List[Dict]:
     rows: List[Dict] = []
     with open(path, "r", encoding="utf-8") as file:
@@ -20,49 +34,44 @@ def read_jsonl(path: str) -> List[Dict]:
     return rows
 
 
-def build_prompt(messages: List[Dict[str, str]]) -> (str, str):
-    system_text = ""
+def build_source_target(messages: List[Dict[str, str]]) -> (str, str):
     user_text = ""
     assistant_text = ""
-
     for item in messages:
         role = item.get("role", "")
         content = item.get("content", "")
-        if role == "system":
-            system_text = content
-        elif role == "user":
+        if role == "user":
             user_text = content
         elif role == "assistant":
             assistant_text = content
 
-    if not system_text:
-        system_text = "You are a helpful assistant for dialog summarization."
+    instruction = "Summarize the following dialogue."
+    data_item = {"instruction": instruction, "input": user_text}
 
-    prompt = (
-        "### System:\n"
-        f"{system_text}\n\n"
-        "### User:\n"
-        f"{user_text}\n\n"
-        "### Assistant:\n"
+    source = (
+        PROMPT_DICT["prompt_input"].format_map(data_item)
+        if data_item.get("input", "") != ""
+        else PROMPT_DICT["prompt_no_input"].format_map(data_item)
     )
-    return prompt, assistant_text
+    target = assistant_text
+    return source, target
 
 
 def preprocess(rows: List[Dict], tokenizer, max_length: int) -> List[Dict[str, List[int]]]:
     dataset = []
     dropped_samples = 0
     for row in rows:
-        prompt, target = build_prompt(row["messages"])
-        full_text = prompt + target
+        source, target = build_source_target(row["messages"])
+        full_text = source + target
 
-        prompt_ids = tokenizer(prompt, add_special_tokens=False)["input_ids"]
+        source_ids = tokenizer(source, add_special_tokens=False)["input_ids"]
         full_ids = tokenizer(full_text, add_special_tokens=False)["input_ids"]
 
         if tokenizer.eos_token_id is not None:
             full_ids = full_ids + [tokenizer.eos_token_id]
 
         full_ids = full_ids[:max_length]
-        prompt_len = min(len(prompt_ids), len(full_ids))
+        prompt_len = min(len(source_ids), len(full_ids))
 
         labels = [-100] * prompt_len + full_ids[prompt_len:]
         if all(x == -100 for x in labels):
